@@ -9,10 +9,7 @@ app.use(express.json());
 const cors = require("cors");
 
 // CORS configuration allowing only the specified API domain
-const allowedOrigins = [
-  "https://api.pjloan.in",
-  "http://api.pjloan.in", // in case HTTP is ever used (can remove if always HTTPS)
-];
+const allowedOrigins = ["*"];
 
 app.use(
   cors({
