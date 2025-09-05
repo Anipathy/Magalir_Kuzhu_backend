@@ -8,8 +8,10 @@ app.use(express.json());
 
 const cors = require("cors");
 
-// CORS configuration allowing only the specified API domain
-const allowedOrigins = ["*"];
+const allowedOrigins = [
+  "https://pjloan.in", // frontend domain
+  "http://localhost:4000", // for local dev (optional)
+];
 
 app.use(
   cors({
