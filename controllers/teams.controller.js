@@ -79,6 +79,7 @@ const createTeam = async (req, res, next) => {
         const userId = req.user.id;
         payload.createdBy = userId;
         payload.nextDue = getNextDueDate(payload.date, payload.day);
+        payload.endDate = getNextDueDate(payload.date, payload.day, payload.totalWeek);
         const team = await Team.create(payload);
         const balanceWeek = await calculateBalanceWeek(team._id, team.totalWeek);
         team.balanceWeek = balanceWeek;
@@ -196,7 +197,7 @@ const editTeam = async (req, res, next) => {
         } else {
             team.nextDue = getNextDueDate(team.date, team.day, maxWeek + 1);
         }
-
+        team.endDate = getNextDueDate(team.date, team.day, team.totalWeek);
         const balanceWeek = await calculateBalanceWeek(team._id, team.totalWeek);
         team.balanceWeek = balanceWeek;
 

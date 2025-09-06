@@ -11,17 +11,18 @@ const generateReport = async (req, res, next) => {
     try {
         const { startDate, endDate } = await generateReportSchema.validateAsync(req.query);
 
-        // Validate dates
-        if (!startDate || !endDate) {
-            return res.status(400).json({ message: "startDate and endDate are required (YYYY-MM-DD)" });
-        }
-
         const start = new Date(startDate);
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // include full end day
+        end.setHours(23, 59, 59, 999);
 
         const report = await Team.aggregate([
-            { $match: { isActive: true } },
+            {
+                $match: {
+                    isActive: true,
+                    date: { $lte: end },        // team started before report end
+                    endDate: { $gte: start }    // team not finished before report start
+                }
+            },
             {
                 $lookup: {
                     from: "transactions",
@@ -30,7 +31,7 @@ const generateReport = async (req, res, next) => {
                         {
                             $match: {
                                 $expr: { $eq: ["$teamId", "$$teamId"] },
-                                date: { $gte: start, $lte: end } // ✅ filter transactions by date
+                                date: { $gte: start, $lte: end }
                             }
                         }
                     ],
@@ -62,12 +63,11 @@ const generateReport = async (req, res, next) => {
             }
         ]);
 
-        // Order days manually: Monday → Sunday
         const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-        const orderedReport = dayOrder
-            .map(day => report.find(r => r.day === day) || { day, totalAmount: 0, collectedAmount: 0, remainingAmount: 0 });
+        const orderedReport = dayOrder.map(day =>
+            report.find(r => r.day === day) || { day, totalAmount: 0, collectedAmount: 0, remainingAmount: 0 }
+        );
 
-        // Grand summary
         const summary = orderedReport.reduce(
             (acc, d) => {
                 acc.totalAmount += d.totalAmount;
@@ -87,6 +87,8 @@ const generateReport = async (req, res, next) => {
         next(error);
     }
 };
+
+
 
 
 const getDayReportSchema = Joi.object({

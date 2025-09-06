@@ -13,6 +13,10 @@ const teamSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    endDate: {
+        type: Date,
+        default: null,
+    },
     day: {
         type: String,
         required: true,
