@@ -7,17 +7,11 @@ if (!DB_URI) {
   process.exit(1);
 }
 
-// Enhanced connection with better logging and event listeners
 (async () => {
   try {
     console.log("🔄 Attempting to connect to MongoDB...");
-    console.log(
-      `🔗 Target URI: ${DB_URI.replace(/\/\/[^:]+:[^@]+@/, "//***:***@")}`
-    );
-
-    // Connect with timeout and additional options
     await mongoose.connect(DB_URI, {
-      serverSelectionTimeoutMS: 10000, // 10 second timeout
+      serverSelectionTimeoutMS: 10000,
       connectTimeoutMS: 10000,
       socketTimeoutMS: 10000,
     });
