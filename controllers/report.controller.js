@@ -109,17 +109,81 @@ const generateReport = async (req, res, next) => {
             remainingAmount: r.remainingAmount,
         }));
 
-        // Ensure all days exist (fill with 0 if missing)
-        const orderedReport = dayOrder.map(
-            (day) =>
-                namedReport.find((r) => r.day === day) || {
-                    day,
-                    totalAmount: 0,
-                    collectedAmount: 0,
-                    toBeCollectedAmount: 0,
-                    remainingAmount: 0,
-                }
+        // If the requested range is 7 days or fewer, return only the days that fall within the range (chronological).
+        // For longer ranges, keep full-week ordering.
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const rangeDays = Math.floor((end.setHours(0, 0, 0, 0) - start.setHours(0, 0, 0, 0)) / msPerDay) + 1;
+
+        let finalDays;
+        if (rangeDays <= 7) {
+            // build chronological list of day names from start to end
+            const jsDayMap = [
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+            ];
+            finalDays = [];
+            for (let d = new Date(start); d <= end; d = new Date(d.getTime() + msPerDay)) {
+                finalDays.push(jsDayMap[d.getDay()]);
+            }
+        } else {
+            finalDays = dayOrder;
+        }
+
+        // Ensure requested days exist (fill with 0 if missing) and preserve order
+        const orderedReport = finalDays.map((day) =>
+            namedReport.find((r) => r.day === day) || {
+                day,
+                totalAmount: 0,
+                collectedAmount: 0,
+                toBeCollectedAmount: 0,
+                remainingAmount: 0,
+            }
         );
+
+        // If start and end fall on the same calendar date, return only that day's data
+        const isSameCalendarDay = (d1, d2) => {
+            const a = new Date(d1);
+            const b = new Date(d2);
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        };
+
+        if (isSameCalendarDay(start, end)) {
+            const jsDayMap = [
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+            ];
+            const dayName = jsDayMap[start.getDay()];
+            const singleDay = orderedReport.find((r) => r.day === dayName) || {
+                day: dayName,
+                totalAmount: 0,
+                collectedAmount: 0,
+                toBeCollectedAmount: 0,
+                remainingAmount: 0,
+            };
+
+            const summary = {
+                totalAmount: singleDay.totalAmount,
+                collectedAmount: singleDay.collectedAmount,
+                toBeCollectedAmount: singleDay.toBeCollectedAmount,
+                remainingAmount: singleDay.remainingAmount,
+            };
+
+            return res.status(200).json({
+                message: `Report generated successfully for ${ startDate }`,
+                report: [singleDay],
+                summary,
+            });
+        }
 
         // Build summary
         const summary = orderedReport.reduce(
