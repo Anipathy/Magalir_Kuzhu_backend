@@ -9,7 +9,9 @@ const generateReportSchema = Joi.object({
 
 const generateReport = async (req, res, next) => {
     try {
-        const { startDate, endDate } = await generateReportSchema.validateAsync(req.query);
+        const { startDate, endDate } = await generateReportSchema.validateAsync(
+            req.query
+        );
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -19,9 +21,9 @@ const generateReport = async (req, res, next) => {
             {
                 $match: {
                     isActive: true,
-                    date: { $lte: end },        // team started before report end
-                    endDate: { $gte: start }    // team not finished before report start
-                }
+                    date: { $lte: end },
+                    endDate: { $gte: start },
+                },
             },
             {
                 $lookup: {
@@ -31,63 +33,120 @@ const generateReport = async (req, res, next) => {
                         {
                             $match: {
                                 $expr: { $eq: ["$teamId", "$$teamId"] },
-                                date: { $gte: start, $lte: end }
-                            }
-                        }
+                                date: { $gte: start, $lte: end },
+                            },
+                        },
                     ],
-                    as: "transactions"
-                }
+                    as: "transactions",
+                },
             },
             {
                 $addFields: {
                     collectedAmount: { $sum: "$transactions.collectedAmount" },
-                    remainingAmount: { $subtract: ["$totalAmount", { $sum: "$transactions.collectedAmount" }] }
-                }
+                    toBeCollectedAmount: {
+                        $cond: [
+                            { $gt: ["$totalWeek", 0] },
+                            { $divide: ["$totalAmount", "$totalWeek"] },
+                            0,
+                        ],
+                    },
+                },
+            },
+            {
+                $addFields: {
+                    weekday: { $dayOfWeek: "$date" }, // 1=Sunday, 7=Saturday
+                },
             },
             {
                 $group: {
-                    _id: "$day",
+                    _id: "$weekday",
                     totalAmount: { $sum: "$totalAmount" },
                     collectedAmount: { $sum: "$collectedAmount" },
-                    remainingAmount: { $sum: "$remainingAmount" }
-                }
+                    toBeCollectedAmount: { $sum: "$toBeCollectedAmount" },
+                },
             },
             {
                 $project: {
                     _id: 0,
-                    day: "$_id",
+                    weekday: "$_id",
                     totalAmount: 1,
                     collectedAmount: 1,
-                    remainingAmount: 1
-                }
-            }
+                    toBeCollectedAmount: 1,
+                    remainingAmount: {
+                        $subtract: ["$toBeCollectedAmount", "$collectedAmount"],
+                    },
+                },
+            },
         ]);
 
-        const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-        const orderedReport = dayOrder.map(day =>
-            report.find(r => r.day === day) || { day, totalAmount: 0, collectedAmount: 0, remainingAmount: 0 }
+        // Map Mongo dayOfWeek (1–7) to names
+        const dayMap = {
+            1: "Sunday",
+            2: "Monday",
+            3: "Tuesday",
+            4: "Wednesday",
+            5: "Thursday",
+            6: "Friday",
+            7: "Saturday",
+        };
+
+        const dayOrder = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ];
+
+        // Replace weekday numbers with names
+        const namedReport = report.map((r) => ({
+            day: dayMap[r.weekday],
+            totalAmount: r.totalAmount,
+            collectedAmount: r.collectedAmount,
+            toBeCollectedAmount: r.toBeCollectedAmount,
+            remainingAmount: r.remainingAmount,
+        }));
+
+        // Ensure all days exist (fill with 0 if missing)
+        const orderedReport = dayOrder.map(
+            (day) =>
+                namedReport.find((r) => r.day === day) || {
+                    day,
+                    totalAmount: 0,
+                    collectedAmount: 0,
+                    toBeCollectedAmount: 0,
+                    remainingAmount: 0,
+                }
         );
 
+        // Build summary
         const summary = orderedReport.reduce(
             (acc, d) => {
                 acc.totalAmount += d.totalAmount;
                 acc.collectedAmount += d.collectedAmount;
+                acc.toBeCollectedAmount += d.toBeCollectedAmount;
                 acc.remainingAmount += d.remainingAmount;
                 return acc;
             },
-            { totalAmount: 0, collectedAmount: 0, remainingAmount: 0 }
+            {
+                totalAmount: 0,
+                collectedAmount: 0,
+                toBeCollectedAmount: 0,
+                remainingAmount: 0,
+            }
         );
 
         res.status(200).json({
             message: `Report generated successfully from ${ startDate } to ${ endDate }`,
             report: orderedReport,
-            summary
+            summary,
         });
     } catch (error) {
         next(error);
     }
 };
-
 
 
 
