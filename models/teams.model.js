@@ -1,66 +1,77 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const teamSchema = new mongoose.Schema({
+const teamSchema = new mongoose.Schema(
+  {
     teamCode: {
-        type: Number,
-        required: true,
+      type: Number,
+      required: true,
     },
     address: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
     date: {
-        type: Date,
-        default: Date.now,
+      type: Date,
+      default: Date.now,
     },
     endDate: {
-        type: Date,
-        default: null,
+      type: Date,
+      default: null,
     },
     day: {
-        type: String,
-        required: true,
-        enum: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+      type: String,
+      required: true,
+      enum: [
+        "Saturday",
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+      ],
     },
     totalAmount: {
-        type: Number,
-        required: true,
+      type: Number,
+      required: true,
     },
     collectedAmount: {
-        type: Number,
-        default: 0,
+      type: Number,
+      default: 0,
     },
     nextDue: {
-        type: Date,
-        default: null,
+      type: Date,
+      default: null,
     },
     totalWeek: {
-        type: Number,
+      type: Number,
     },
     balanceWeek: {
-        type: Number,
-        default: 0,
+      type: Number,
+      default: 0,
     },
     members: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Member'
-        }
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Member",
+      },
     ],
     createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
     updatedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     isActive: {
-        type: Boolean,
-        default: true,
-    }
-}, { timestamps: true });
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true }
+);
 
-const Team = mongoose.model('Team', teamSchema);
+const Team = mongoose.model("Team", teamSchema);
 module.exports = Team;
