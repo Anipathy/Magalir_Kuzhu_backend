@@ -71,7 +71,7 @@ const createTeamSchema = Joi.object({
     });
     if (providedDay !== value.day) {
       return helpers.message(
-        `Provided date (${value.date}) does not match the selected day (${value.day})`
+        `Provided date (${ value.date }) does not match the selected day (${ value.day })`
       );
     }
   }
@@ -136,7 +136,7 @@ const getAllTeams = async (req, res, next) => {
         $expr: {
           $regexMatch: {
             input: { $toString: "$teamCode" },
-            regex: `^${search}`,
+            regex: `^${ search }`,
             options: "i",
           },
         },
@@ -183,7 +183,7 @@ const editTeamSchema = Joi.object({
     });
     if (providedDay !== value.day) {
       return helpers.message(
-        `Provided date (${value.date}) does not match the selected day (${value.day})`
+        `Provided date (${ value.date }) does not match the selected day (${ value.day })`
       );
     }
   }
@@ -232,13 +232,13 @@ const editTeam = async (req, res, next) => {
 
     if (payload.totalAmount && payload.totalAmount < collected) {
       return res.status(400).json({
-        message: `Total amount cannot be less than already collected amount (${collected})`,
+        message: `Total amount cannot be less than already collected amount (${ collected })`,
       });
     }
 
     if (payload.totalWeek && payload.totalWeek < maxWeek) {
       return res.status(400).json({
-        message: `Total week cannot be less than the highest recorded transaction week (${maxWeek})`,
+        message: `Total week cannot be less than the highest recorded transaction week (${ maxWeek })`,
       });
     }
 
@@ -298,8 +298,12 @@ async function isAadharAvailableInActiveTeams(aadharnumber) {
     return true;
   }
   const team = await Team.findOne({ _id: member.teamId, isActive: true });
-  return !team;
+  if (team) {
+    return { isAvailable: false, teamCode: team.teamCode, day: team.day };
+  }
+  return true;
 }
+
 
 const createMemberSchema = Joi.object({
   teamId: Joi.string().required(),
@@ -325,15 +329,14 @@ const addMember = async (req, res, next) => {
     if (!team || !team.isActive)
       return res.status(400).json({ message: "Team not found or inactive" });
 
-    const isAvailable = await isAadharAvailableInActiveTeams(
+    const aadharCheck = await isAadharAvailableInActiveTeams(
       payload.aadharnumber
     );
-    if (!isAvailable)
-      return res
-        .status(400)
-        .json({ message: "Aadhar number already exists in an active team" });
+    if (aadharCheck !== true)
+      return res.status(400).json({
+        message: `Aadhar number already exists in ${ aadharCheck.day } team ${ aadharCheck.teamCode }`,
+      });
 
-    // Handle optional photo upload via multipart/form-data (req.file)
     if (req.file && req.file.buffer) {
       const uploaded = await uploadToImageKit(
         req.file.buffer,
@@ -379,16 +382,15 @@ const editMember = async (req, res, next) => {
     if (!member) return res.status(400).json({ message: "Member not found" });
 
     if (payload.aadharnumber && payload.aadharnumber !== member.aadharnumber) {
-      const isAvailable = await isAadharAvailableInActiveTeams(
+      const aadharCheck = await isAadharAvailableInActiveTeams(
         payload.aadharnumber
       );
-      if (!isAvailable)
-        return res
-          .status(400)
-          .json({ message: "Aadhar number already exists in an active team" });
+      if (aadharCheck !== true)
+        return res.status(400).json({
+          message: `Aadhar number already exists in ${ aadharCheck.day } team ${ aadharCheck.teamCode }`,
+        });
     }
 
-    // If a new photo is uploaded, upload to ImageKit and delete previous
     if (req.file && req.file.buffer) {
       const uploaded = await uploadToImageKit(
         req.file.buffer,
